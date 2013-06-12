@@ -20,14 +20,14 @@
 -type alert_opts() :: [alert_opt()].
 -type alert_error() :: internal_error|{code, pos_integer()}.
 
--spec alert(team_name(), message(), alert_type()) ->
+-spec alert(alert_type(), team_name(), message()) ->
                    {ok, request_id()}|{error, alert_error()}.
-alert(Team, Message, AlertType) ->
-    alert(Team, Message, AlertType, []).
+alert(AlertType, Team, Message) ->
+    alert(AlertType, Team, Message, []).
 
--spec alert(team_name(), message(), alert_type(), alert_opts()) ->
+-spec alert(alert_type(), team_name(), message(), alert_opts()) ->
                    {ok, request_id()}|{error, alert_error()}.
-alert(Team, Message, AlertType, AlertOpts) ->
+alert(AlertType, Team, Message, AlertOpts) ->
     SputnikApi = esputnik_app:config(sputnik_api_endpoint),
     FormData = [{<<"team">>, to_bin(Team)},
                 {<<"message">>, to_bin(Message)},

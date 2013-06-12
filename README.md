@@ -24,7 +24,7 @@ $ make test
 -type alert_type() :: alert|resolve.
 -type request_id() :: iolist().
 -type alert_error() :: internal_error|{code, pos_integer()}.
--spec alert(team_name(), message(), alert_type()) ->
+-spec alert(alert_type(), team_name(), message()) ->
                    {ok, request_id()}|{error, alert_error()}.
 ```
 
@@ -34,6 +34,6 @@ You can specify some options as such
 -type alert_opt() :: {request_id, iolist()}|{message_id, iolist()}|
                           {priority, priority()}.
 -type alert_opts() :: [alert_opt()].
--spec alert(team_name(), message(), alert_type(), alert_opts()) ->
+-spec alert(alert_type(), team_name(), message(), alert_opts()) ->
                    {ok, request_id()}|{error, alert_error()}.
 ```

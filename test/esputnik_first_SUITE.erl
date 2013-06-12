@@ -101,16 +101,16 @@ end_per_testcase(_CaseName, Config) ->
 %%% TESTS %%%
 %%%%%%%%%%%%%
 active_alert(Config) ->
-    {ok, <<"random">>} = esputnik:alert(<<"dev">>, <<"active_alert">>, alert),
+    {ok, <<"random">>} = esputnik:alert(alert, <<"dev">>, <<"active_alert">>),
     Config.
 
 active_resolve(Config) ->
-    {ok, <<"random">>} = esputnik:alert(<<"dev">>, <<"active_resolve">>, resolve),
+    {ok, <<"random">>} = esputnik:alert(resolve, <<"dev">>, <<"active_resolve">>),
     Config.
 
 alert_opts(Config) ->
     MessageId = <<"msg_id">>,
-    {ok, MessageId} = esputnik:alert(<<"dev">>, <<"alert_opts">>, alert,
+    {ok, MessageId} = esputnik:alert(alert, <<"dev">>, <<"alert_opts">>,
                                      [{request_id, <<"test">>},
                                       {message_id, MessageId},
                                       {priority, critical}]),
