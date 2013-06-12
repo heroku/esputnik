@@ -2,11 +2,10 @@
 {application, esputnik,
  [
   {description, "Erlang client to Sputnik"},
-  {vsn, "0.0.1"},
+  {vsn, "0.1.0"},
   {registered, []},
   {applications, [kernel,
                   stdlib,
                   hackney]},
-  {mod, { esputnik_app, []}},
   {env, [{sputnik_api_endpoint, ""}]}
  ]}.
