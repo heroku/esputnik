@@ -1,0 +1,12 @@
+%%% -*- mode: erlang -*-
+{application, esputnik,
+ [
+  {description, "Erlang client to Sputnik"},
+  {vsn, "0.0.1"},
+  {registered, []},
+  {applications, [kernel,
+                  stdlib,
+                  hackney]},
+  {mod, { esputnik_app, []}},
+  {env, [{sputnik_api_endpoint, ""}]}
+ ]}.
