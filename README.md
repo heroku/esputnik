@@ -16,6 +16,14 @@ $ make test
 
 ## Erlang API
 
+### Configuration
+
+``` erlang
+-type sputnik_api_endpoint() :: binary().
+
+[{esputnik, [{sputnik_api_endpoint, sputnik_api_endpoint()}]}].
+```
+
 ### Sending a sputnik alert
 
 ``` erlang
