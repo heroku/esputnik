@@ -12,7 +12,8 @@ all() ->
     [
      active_alert,
      active_resolve,
-     alert_opts
+     alert_opts,
+     esputnik_server
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%
@@ -22,8 +23,7 @@ all() ->
 %% from the one the case will run in.
 init_per_suite(Config) ->
     ok = application:start(meck),
-    application:set_env(esputnik, sputnik_api_endpoint, <<"test">>),
-    Config.
+    [{server, <<"test">>}|Config].
 
 %% Runs once at the end of the suite. The process is different
 %% from the one the case will run in.
@@ -39,11 +39,15 @@ init_per_testcase(active_alert, Config) ->
                         <<"dev">> = proplists:get_value(<<"team">>, FormData),
                         <<"active_alert">> = proplists:get_value(<<"message">>, FormData),
                         <<"alert">> = proplists:get_value(<<"type">>, FormData),
-                        {ok, 200, [], active_alert}
+                        {ok, 200, [], connection1}
+                end),
+    meck:expect(hackney, send_request,
+                fun(connection2, _) ->
+                        {error, closed}
                 end),
     meck:expect(hackney, body,
-                fun(active_alert) ->
-                        {ok, <<"{\"request_id\":\"random\"}">>, active_client}
+                fun(connection1) ->
+                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
                 end),
     meck:expect(hackney, close,
                 fun(active_client) ->
@@ -57,14 +61,14 @@ init_per_testcase(active_resolve, Config) ->
                         <<"dev">> = proplists:get_value(<<"team">>, FormData),
                         <<"active_resolve">> = proplists:get_value(<<"message">>, FormData),
                         <<"resolve">> = proplists:get_value(<<"type">>, FormData),
-                        {ok, 200, [], active_alert}
+                        {ok, 200, [], connection1}
                 end),
     meck:expect(hackney, body,
-                fun(active_alert) ->
-                        {ok, <<"{\"request_id\":\"random\"}">>, active_client}
+                fun(connection1) ->
+                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
                 end),
     meck:expect(hackney, close,
-                fun(active_client) ->
+                fun(connection2) ->
                         ok
                 end),
     Config;
@@ -79,10 +83,42 @@ init_per_testcase(alert_opts, Config) ->
                         MessageId = proplists:get_value(<<"message_id">>, FormData),
                         <<"critical">> = proplists:get_value(<<"priority">>, FormData),
                         meck:expect(hackney, body,
-                                    fun(alert_opts) ->
-                                            {ok, <<"{\"request_id\":\"", MessageId/binary  ,"\"}">>, active_client}
+                                    fun(connection1) ->
+                                            {ok, <<"{\"request_id\":\"", MessageId/binary  ,"\"}">>, connection2}
                                     end),
-                        {ok, 200, [], alert_opts}
+                        {ok, 200, [], connection1}
+                end),
+    meck:expect(hackney, close,
+                fun(connection2) ->
+                        ok
+                end),
+    Config;
+init_per_testcase(esputnik_server, Config) ->
+    ets:new(esputnik_server, [named_table, public]),
+    meck:new(hackney, [unstick, passthrough]),
+    meck:expect(hackney, request,
+                fun(post, <<"test/alert">>, [], {form, FormData}) ->
+                        Team = proplists:get_value(<<"team">>, FormData),
+                        Message = proplists:get_value(<<"message">>, FormData),
+                        <<"alert">> = proplists:get_value(<<"type">>, FormData),
+                        ets:insert(esputnik_server, {Team, Message}),
+                        {ok, 200, [], connection1}
+                end),
+    meck:expect(hackney, send_request,
+                fun(connection2, {post, <<"/alert">>, [], {form, FormData}}) ->
+                        Team = proplists:get_value(<<"team">>, FormData),
+                        <<"alert">> = proplists:get_value(<<"type">>, FormData),
+                        case proplists:get_value(<<"message">>, FormData) of
+                            <<"esputnik_server1">>=Message ->
+                                ets:insert(esputnik_server, {Team, Message}),
+                                {ok, 200, [], connection1};
+                            <<"esputnik_server2">> ->
+                                {error, closed}
+                        end
+                end),
+    meck:expect(hackney, body,
+                fun(connection1) ->
+                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
                 end),
     meck:expect(hackney, close,
                 fun(active_client) ->
@@ -93,6 +129,10 @@ init_per_testcase(_CaseName, Config) ->
     Config.
 
 %% Runs after the test case. Runs in the same process.
+end_per_testcase(esputnik_server, Config) ->
+    ets:delete(esputnik_server),
+    meck:unload(hackney),
+    Config;
 end_per_testcase(_CaseName, Config) ->
     meck:unload(hackney),
     Config.
@@ -101,17 +141,42 @@ end_per_testcase(_CaseName, Config) ->
 %%% TESTS %%%
 %%%%%%%%%%%%%
 active_alert(Config) ->
-    {ok, <<"random">>} = esputnik:alert(alert, <<"dev">>, <<"active_alert">>),
+    Server = ?config(server, Config),
+    {ok, <<"random">>, connection2} = esputnik_api:alert(Server, alert, <<"dev">>, <<"active_alert">>),
+    Package = esputnik_api:to_sputnik_message(alert, <<"dev">>, <<"active_alert">>, []),
+    {ok, <<"random">>, connection2} = esputnik_api:send_alert(Server, Package),
+    {error, closed} = esputnik_api:send_alert(connection2, Package),
     Config.
 
 active_resolve(Config) ->
-    {ok, <<"random">>} = esputnik:alert(resolve, <<"dev">>, <<"active_resolve">>),
+    Server = ?config(server, Config),
+    {ok, <<"random">>, connection2} = esputnik_api:alert(Server, resolve, <<"dev">>, <<"active_resolve">>),
     Config.
 
 alert_opts(Config) ->
+    Server = ?config(server, Config),
     MessageId = <<"msg_id">>,
-    {ok, MessageId} = esputnik:alert(alert, <<"dev">>, <<"alert_opts">>,
-                                     [{request_id, <<"test">>},
-                                      {message_id, MessageId},
-                                      {priority, critical}]),
+    {ok, MessageId, connection2} = esputnik_api:alert(Server, alert, <<"dev">>, <<"alert_opts">>,
+                                                      [{request_id, <<"test">>},
+                                                       {message_id, MessageId},
+                                                       {priority, critical}]),
     Config.
+
+esputnik_server(Config) ->
+    Server = ?config(server, Config),
+    {ok, _Pid} = esputnik:start_link(Server),
+    ok = esputnik:alert(alert, <<"team1">>, <<"esputnik_server">>),
+    <<"esputnik_server">> = proplists:get_value(<<"team1">>, wait_for_message(1)),
+    ok = esputnik:alert(alert, <<"team2">>, <<"esputnik_server1">>),
+    <<"esputnik_server1">> = proplists:get_value(<<"team2">>, wait_for_message(2)),
+    ok = esputnik:alert(alert, <<"team3">>, <<"esputnik_server2">>),
+    <<"esputnik_server2">> = proplists:get_value(<<"team3">>, wait_for_message(3)),
+    Config.
+
+wait_for_message(Length) ->
+    case ets:tab2list(esputnik_server) of 
+        List when length(List) == Length ->
+            List;
+        _ ->
+            wait_for_message(Length)
+    end.

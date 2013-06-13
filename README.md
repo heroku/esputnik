@@ -16,32 +16,38 @@ $ make test
 
 ## Erlang API
 
-### Configuration
-
-``` erlang
--type sputnik_api_endpoint() :: binary().
-
-[{esputnik, [{sputnik_api_endpoint, sputnik_api_endpoint()}]}].
-```
-
-### Sending a sputnik alert
-
 ``` erlang
 -type team_name() :: iolist().
 -type message() :: iolist().
 -type alert_type() :: alert|resolve.
 -type request_id() :: iolist().
 -type alert_error() :: internal_error|{code, pos_integer()}.
--spec alert(alert_type(), team_name(), message()) ->
-                   {ok, request_id()}|{error, alert_error()}.
+-type sputnik_path() :: iolist().
+-opaque connection().
+-type sputnik_server() :: sputnik_path()|connection().
+-type alert_output() :: {ok, request_id(), connection()}|
+                         {error, alert_error(), connection()}.
+                         
+esputnik_api:alert(sputnik_server(), sputnik_message()) -> alert_output().
+esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message()) -> alert_output().
+esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message(), alert_opts()) -> alert_output().
 ```
 
-You can specify some options as such
+You can also create a server and cast messages to it.
 
 ``` erlang
--type alert_opt() :: {request_id, iolist()}|{message_id, iolist()}|
-                          {priority, priority()}.
--type alert_opts() :: [alert_opt()].
--spec alert(alert_type(), team_name(), message(), alert_opts()) ->
-                   {ok, request_id()}|{error, alert_error()}.
+esputnik:start_link(esputnik_api:sputnik_path()) -> {ok, pid()}.
+```
+
+If you prefer you can get the child_specs to use
+
+``` erlang
+esputnik:child_spec(esputnik_api:sputnik_path()) -> supervisor:child_spec().
+```
+
+To send messages once you'we spawned a server
+
+``` erlang
+esputnik:alert(alert_type(), team_name(), message()) -> ok.
+esputnik:alert(esputnik_api:alert_type(), esputnik_api:team_name(), esputnik_api:message(), esputnik_api:alert_opts()) -> ok.
 ```
