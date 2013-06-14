@@ -1,6 +1,6 @@
 # esputnik
 
-Send alerts into Sputnik
+Send alerts to a Sputnik server
 
 ## Setup
 
