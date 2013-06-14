@@ -12,7 +12,8 @@ all() ->
     [active_alert,
      active_resolve,
      alert_opts,
-     esputnik_server
+     esputnik_server,
+     sputnik_api_timeout
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%
@@ -133,6 +134,8 @@ init_per_testcase(esputnik_server, Config) ->
                         ok
                 end),
     Config;
+init_per_testcase(sputnik_api_timeout, Config) ->
+    Config;
 init_per_testcase(_CaseName, Config) ->
     Config.
 
@@ -185,6 +188,13 @@ esputnik_server(Config) ->
     <<"esputnik_server4">> = proplists:get_value(<<"team4">>, wait_for_message(4)),
     Config.
 
+sputnik_api_timeout(Config) ->
+    application:set_env(esputnik, connect_timeout, 1),
+    Message = esputnik_api:to_sputnik_message(alert, <<"dev">>, <<"timeout">>),
+    {error, timeout} = esputnik_api:send_alert(<<"https://heroku.com">>, Message),
+    Config.
+
+% Internal
 wait_for_message(Length) ->
     case ets:tab2list(esputnik_server) of 
         List when length(List) == Length ->

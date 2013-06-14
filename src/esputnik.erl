@@ -50,24 +50,19 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({alert, SputnikMessage}, #state{connection=undefined,
                                             server=Server}=State) ->
-    {ok, _RequestId, Connection} = esputnik_api:send_alert(Server, SputnikMessage),
-    {noreply, State#state{connection=Connection}};
+    case send_alert(Server, SputnikMessage) of
+        {error, reconnect} ->
+            error_logger:info_msg("at=handle_alert error=closed message=~p", [SputnikMessage]),
+            {noreply, State};
+        {new_connection, Connection1} ->
+            {noreply, State#state{connection=Connection1}}
+    end;
 handle_cast({alert, SputnikMessage}, #state{connection=Connection}=State) ->
-    case esputnik_api:send_alert(Connection, SputnikMessage) of
-        {ok, _RequestId, Connection1} ->
-            {noreply, State#state{connection=Connection1}};
-        {error, closed} ->
+    case send_alert(Connection, SputnikMessage) of
+        {error, reconnect} ->
             handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
-        {error, invalid_state} ->
-            handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
-        {error, timeout} ->
-            error_logger:info_msg("at=handle_alert error=timeout message=~p", [SputnikMessage]),
-            esputnik_api:close_connection(Connection),
-            {noreply, State#state{connection=undefined}};
-        {error, Error} ->
-            error_logger:info_msg("at=handle_alert error=~p message=~p", [Error, SputnikMessage]),
-            esputnik_api:close_connection(Connection),
-            {noreply, State#state{connection=undefined}}
+        {new_connection, Connection1} ->
+            {noreply, State#state{connection=Connection1}}
     end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -80,3 +75,22 @@ terminate(_Reason, #state{connection=Connection}) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% Internal
+send_alert(Connection, SputnikMessage) ->
+    case esputnik_api:send_alert(Connection, SputnikMessage) of
+        {ok, _RequestId, Connection1} ->
+            {new_connection, Connection1};
+        {error, closed} ->
+            {error, reconnect};
+        {error, invalid_state} ->
+            {error, reconnect};
+        {error, timeout} ->
+            error_logger:info_msg("at=handle_alert error=timeout message=~p", [SputnikMessage]),
+            esputnik_api:close_connection(Connection),
+            {new_connection, undefined};
+        {error, Error} ->
+            error_logger:info_msg("at=handle_alert error=~p message=~p", [Error, SputnikMessage]),
+            esputnik_api:close_connection(Connection),
+            {new_connection, undefined}
+    end.
