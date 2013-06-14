@@ -8,4 +8,4 @@ test: default
 
 console: default
 	erl \
-	-pa ebin deps/*/ebin -env $ERL_LIBS deps -s -config esputnik -s esputnik_app start
+	-pa ebin deps/*/ebin -env $ERL_LIBS deps -s esputnik_app start

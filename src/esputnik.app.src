@@ -6,6 +6,5 @@
   {registered, []},
   {applications, [kernel,
                   stdlib,
-                  hackney]},
-  {env, [{sputnik_api_endpoint, ""}]}
+                  hackney]}
  ]}.
