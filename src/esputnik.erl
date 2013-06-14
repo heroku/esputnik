@@ -54,12 +54,20 @@ handle_cast({alert, SputnikMessage}, #state{connection=undefined,
     {noreply, State#state{connection=Connection}};
 handle_cast({alert, SputnikMessage}, #state{connection=Connection}=State) ->
     case esputnik_api:send_alert(Connection, SputnikMessage) of
+        {ok, _RequestId, Connection1} ->
+            {noreply, State#state{connection=Connection1}};
         {error, closed} ->
             handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
         {error, invalid_state} ->
             handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
-        {ok, _RequestId, Connection1} ->
-            {noreply, State#state{connection=Connection1}}
+        {error, timeout} ->
+            error_logger:info_msg("at=handle_alert error=timeout message=~p", [SputnikMessage]),
+            esputnik_api:close_connection(Connection),
+            {noreply, State#state{connection=undefined}};
+        {error, Error} ->
+            error_logger:info_msg("at=handle_alert error=~p message=~p", [Error, SputnikMessage]),
+            esputnik_api:close_connection(Connection),
+            {noreply, State#state{connection=undefined}}
     end;
 handle_cast(_Msg, State) ->
     {noreply, State}.

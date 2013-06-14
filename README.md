@@ -19,7 +19,10 @@ $ make test
 You need to specify a `sputnik_server`
 
 ``` erlang
-[{esputnik, [{sputnik_api_url, iolist()}]}].
+[{esputnik, [{sputnik_api_url, iolist()},
+             {connect_timeout, pos_integer()}, % ms, default 2000
+             {recv_timeout, pos_integer()} % ms, default 2000
+            ]}].
 ```
 
 This configuration variable is used in the `esputnik` stateful `gen_server`.
@@ -55,7 +58,7 @@ change_api_url(esputnik_api:sputnik_api_url()) -> {changed, esputnik_api:sputnik
 ## API module
 
 ``` erlang
-esputnik_api:alert(sputnik_server(), sputnik_message()) -> alert_output().
-esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message()) -> alert_output().
-esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message(), alert_opts()) -> alert_output().
+to_sputnik_message(alert_type(), team_name(), message(), alert_opts()) -> {ok, sputnik_message()}.
+send_alert(sputnik_server(), sputnik_message(), sputnik_connect_opts()) -> alert_output().
+send_alert(sputnik_server(), sputnik_message()) -> alert_output().
 ```

@@ -2,10 +2,13 @@
 {application, esputnik,
  [
   {description, "Erlang client to Sputnik"},
-  {vsn, "0.1.0"},
+  {vsn, "0.1.1"},
   {registered, []},
   {applications, [kernel,
                   stdlib,
                   hackney]},
-  {mod, { esputnik_app, []}}
+  {mod, { esputnik_app, []}},
+  {env, [{connect_timeout, 2000} %% ms
+         ,{recv_timeout, 2000} %% ms
+        ]}
  ]}.
