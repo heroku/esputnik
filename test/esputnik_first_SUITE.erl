@@ -94,10 +94,18 @@ init_per_testcase(alert_opts, Config) ->
                 end),
     Config;
 init_per_testcase(esputnik_server, Config) ->
+    application:set_env(esputnik, sputnik_api_url, ?config(server, Config)),
+    esputnik_app:start(),
     ets:new(esputnik_server, [named_table, public]),
     meck:new(hackney, [unstick, passthrough]),
     meck:expect(hackney, request,
                 fun(post, <<"test/alert">>, [], {form, FormData}) ->
+                        Team = proplists:get_value(<<"team">>, FormData),
+                        Message = proplists:get_value(<<"message">>, FormData),
+                        <<"alert">> = proplists:get_value(<<"type">>, FormData),
+                        ets:insert(esputnik_server, {Team, Message}),
+                        {ok, 200, [], connection1};
+                   (post, <<"new_url/alert">>, [], {form, FormData}) ->
                         Team = proplists:get_value(<<"team">>, FormData),
                         Message = proplists:get_value(<<"message">>, FormData),
                         <<"alert">> = proplists:get_value(<<"type">>, FormData),
@@ -109,10 +117,10 @@ init_per_testcase(esputnik_server, Config) ->
                         Team = proplists:get_value(<<"team">>, FormData),
                         <<"alert">> = proplists:get_value(<<"type">>, FormData),
                         case proplists:get_value(<<"message">>, FormData) of
-                            <<"esputnik_server1">>=Message ->
+                            <<"esputnik_server2">>=Message ->
                                 ets:insert(esputnik_server, {Team, Message}),
                                 {ok, 200, [], connection1};
-                            <<"esputnik_server2">> ->
+                            <<"esputnik_server3">> ->
                                 {error, closed}
                         end
                 end),
@@ -163,14 +171,15 @@ alert_opts(Config) ->
     Config.
 
 esputnik_server(Config) ->
-    Server = ?config(server, Config),
-    {ok, _Pid} = esputnik:start_link(Server),
-    ok = esputnik:alert(alert, <<"team1">>, <<"esputnik_server">>),
-    <<"esputnik_server">> = proplists:get_value(<<"team1">>, wait_for_message(1)),
-    ok = esputnik:alert(alert, <<"team2">>, <<"esputnik_server1">>),
-    <<"esputnik_server1">> = proplists:get_value(<<"team2">>, wait_for_message(2)),
-    ok = esputnik:alert(alert, <<"team3">>, <<"esputnik_server2">>),
-    <<"esputnik_server2">> = proplists:get_value(<<"team3">>, wait_for_message(3)),
+    ok = esputnik:alert(alert, <<"team1">>, <<"esputnik_server1">>),
+    <<"esputnik_server1">> = proplists:get_value(<<"team1">>, wait_for_message(1)),
+    ok = esputnik:alert(alert, <<"team2">>, <<"esputnik_server2">>),
+    <<"esputnik_server2">> = proplists:get_value(<<"team2">>, wait_for_message(2)),
+    ok = esputnik:alert(alert, <<"team3">>, <<"esputnik_server3">>),
+    <<"esputnik_server3">> = proplists:get_value(<<"team3">>, wait_for_message(3)),
+    {changed, <<"test">>, <<"new_url">>} = esputnik:change_api_url(<<"new_url">>),
+    ok = esputnik:alert(alert, <<"team4">>, <<"esputnik_server4">>),
+    <<"esputnik_server4">> = proplists:get_value(<<"team4">>, wait_for_message(4)),
     Config.
 
 wait_for_message(Length) ->

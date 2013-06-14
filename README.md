@@ -19,7 +19,7 @@ $ make test
 You need to specify a `sputnik_server`
 
 ``` erlang
-[{esputnik, [{sputnik_server, iolist()}]}].
+[{esputnik, [{sputnik_api_url, iolist()}]}].
 ```
 
 This configuration variable is used in the `esputnik` stateful `gen_server`.
@@ -35,8 +35,8 @@ This configuration variable is used in the `esputnik` stateful `gen_server`.
 -type request_id() :: iolist().
 -type alert_error() :: internal_error|{code, pos_integer()}.
 -opaque connection().
--type sputnik_path() :: iolist().
--type sputnik_server() :: sputnik_path()|connection().
+-type sputnik_api_url() :: iolist().
+-type sputnik_server() :: sputnik_api_url()|connection().
 -type alert_output() :: {ok, request_id(), connection()}|
                          {error, alert_error(), connection()}.
 -type alert_opt() :: {request_id, iolist()}|{message_id, iolist()}|
@@ -48,6 +48,8 @@ This configuration variable is used in the `esputnik` stateful `gen_server`.
 ``` erlang
 esputnik:alert(alert_type(), team_name(), message()) -> ok.
 esputnik:alert(esputnik_api:alert_type(), esputnik_api:team_name(), esputnik_api:message(), esputnik_api:alert_opts()) -> ok.
+change_api_url(esputnik_api:sputnik_api_url()) -> {changed, esputnik_api:sputnik_api_url(),
+                                                   esputnik_api:sputnik_api_url()}.
 ```
 
 ## API module

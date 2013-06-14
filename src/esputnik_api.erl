@@ -15,7 +15,7 @@
               connection/0,
               sputnik_message/0,
               sputnik_server/0,
-              sputnik_path/0
+              sputnik_api_url/0
              ]).
 
 -type team_name() :: iolist().
@@ -29,14 +29,14 @@
 -type alert_error() :: internal_error|{code, pos_integer()}.
 -type alert_output() :: {ok, request_id(), connection()}|
                          {error, alert_error(), connection()}.
--type sputnik_path() :: iolist().
+-type sputnik_api_url() :: iolist().
 -opaque connection() :: record()|undefined.
--type sputnik_server() :: sputnik_path()|connection().
+-type sputnik_server() :: sputnik_api_url()|connection().
 -opaque sputnik_message() :: [{binary(), binary()}].
 
 -spec send_alert(sputnik_server(), sputnik_message()) -> alert_output().
-send_alert(Endpoint, SputnikMessage) ->
-    http_post(Endpoint, <<"/alert">>, SputnikMessage).
+send_alert(SputnikServer, SputnikMessage) ->
+    http_post(SputnikServer, <<"/alert">>, SputnikMessage).
 
 -spec close_connection(connection()|undefined) -> ok.
 close_connection(Connection) ->
@@ -44,18 +44,18 @@ close_connection(Connection) ->
     ok.
 
 -spec alert(sputnik_server(), sputnik_message()) -> alert_output().
-alert(Server, SputnikMessage) ->
-    send_alert(Server, SputnikMessage).
+alert(SputnikServer, SputnikMessage) ->
+    send_alert(SputnikServer, SputnikMessage).
 
 -spec alert(sputnik_server(), alert_type(), team_name(), message()) -> alert_output().
-alert(Server, AlertType, Team, Message) ->
-    alert(Server, AlertType, Team, Message, []).
+alert(SputnikServer, AlertType, Team, Message) ->
+    alert(SputnikServer, AlertType, Team, Message, []).
 
 -spec alert(sputnik_server(), alert_type(), team_name(), message(), alert_opts()) ->
                    alert_output().
-alert(Server, AlertType, Team, Message, AlertOpts) ->
+alert(SputnikServer, AlertType, Team, Message, AlertOpts) ->
     FormData = to_sputnik_message(AlertType, Team, Message, AlertOpts),
-    alert(Server, FormData).
+    alert(SputnikServer, FormData).
 
 -spec to_sputnik_message(alert_type(), team_name(), message(), alert_opts()) ->
                                 {ok, sputnik_message()}.
@@ -89,17 +89,17 @@ convert_priority(warning) ->
 convert_priority(notice) ->
     <<"notice">>.
 
-http_post(SputnikPath, Endpoint, FormData) when is_list(SputnikPath) ->
-    http_post(to_bin(SputnikPath), Endpoint, FormData);
-http_post(SputnikPath, Endpoint, FormData) when is_binary(SputnikPath) ->
-    HttpReply = hackney:request(post, <<SputnikPath/binary, Endpoint/binary>>, [], {form, FormData}),
+http_post(SputnikApiUrl, Endpoint, FormData) when is_list(SputnikApiUrl) ->
+    http_post(to_bin(SputnikApiUrl), Endpoint, FormData);
+http_post(SputnikApiUrl, Endpoint, FormData) when is_binary(SputnikApiUrl) ->
+    HttpReply = hackney:request(post, <<SputnikApiUrl/binary, Endpoint/binary>>, [], {form, FormData}),
     http_handle(HttpReply);
-http_post(Client, Endpoint, FormData) ->
-    case hackney:send_request(Client, {post, Endpoint, [], {form, FormData}}) of
+http_post(SputnikClient, Endpoint, FormData) ->
+    case hackney:send_request(SputnikClient, {post, Endpoint, [], {form, FormData}}) of
         {error, closed} ->
             {error, closed};
         {error, invalid_state} ->
-            close_connection(Client),
+            close_connection(SputnikClient),
             {error, invalid_state};
         HttpReply ->
             http_handle(HttpReply)
