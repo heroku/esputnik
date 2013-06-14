@@ -14,7 +14,19 @@ $ make
 $ make test
 ```
 
+## Configuration
+
+You need to specify a `sputnik_server`
+
+``` erlang
+[{esputnik, [{sputnik_server, iolist()}]}].
+```
+
+This configuration variable is used in the `esputnik` stateful `gen_server`.
+
 ## Erlang API
+
+## Types
 
 ``` erlang
 -type team_name() :: iolist().
@@ -22,32 +34,26 @@ $ make test
 -type alert_type() :: alert|resolve.
 -type request_id() :: iolist().
 -type alert_error() :: internal_error|{code, pos_integer()}.
--type sputnik_path() :: iolist().
 -opaque connection().
+-type sputnik_path() :: iolist().
 -type sputnik_server() :: sputnik_path()|connection().
 -type alert_output() :: {ok, request_id(), connection()}|
                          {error, alert_error(), connection()}.
-                         
-esputnik_api:alert(sputnik_server(), sputnik_message()) -> alert_output().
-esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message()) -> alert_output().
-esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message(), alert_opts()) -> alert_output().
+-type alert_opt() :: {request_id, iolist()}|{message_id, iolist()}|
+                          {priority, priority()}.
 ```
 
-You can also create a server and cast messages to it.
-
-``` erlang
-esputnik:start_link(esputnik_api:sputnik_path()) -> {ok, pid()}.
-```
-
-If you prefer you can get the child_specs to use
-
-``` erlang
-esputnik:child_spec(esputnik_api:sputnik_path()) -> supervisor:child_spec().
-```
-
-To send messages once you'we spawned a server
+## Server API
 
 ``` erlang
 esputnik:alert(alert_type(), team_name(), message()) -> ok.
 esputnik:alert(esputnik_api:alert_type(), esputnik_api:team_name(), esputnik_api:message(), esputnik_api:alert_opts()) -> ok.
+```
+
+## API module
+
+``` erlang
+esputnik_api:alert(sputnik_server(), sputnik_message()) -> alert_output().
+esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message()) -> alert_output().
+esputnik_api:alert(sputnik_server(), alert_type(), team_name(), message(), alert_opts()) -> alert_output().
 ```
