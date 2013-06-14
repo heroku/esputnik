@@ -13,7 +13,8 @@ all() ->
      active_resolve,
      alert_opts,
      esputnik_server,
-     sputnik_api_timeout
+     sputnik_api_timeout,
+     sputnik_api_timeout_server
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%
@@ -134,7 +135,8 @@ init_per_testcase(esputnik_server, Config) ->
                         ok
                 end),
     Config;
-init_per_testcase(sputnik_api_timeout, Config) ->
+init_per_testcase(sputnik_api_timeout_server, Config) ->
+    esputnik:change_api_url(<<"https://heroku.com">>),
     Config;
 init_per_testcase(_CaseName, Config) ->
     Config.
@@ -192,6 +194,10 @@ sputnik_api_timeout(Config) ->
     application:set_env(esputnik, connect_timeout, 1),
     Message = esputnik_api:to_sputnik_message(alert, <<"dev">>, <<"timeout">>),
     {error, timeout} = esputnik_api:send_alert(<<"https://heroku.com">>, Message),
+    Config.
+
+sputnik_api_timeout_server(Config) ->
+    ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server">>),
     Config.
 
 % Internal
