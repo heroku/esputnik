@@ -3,13 +3,12 @@
 
 -export([start_link/1]).
 
--export([init/1, handle_call/3, handle_cast/2,
-         handle_info/2, terminate/2, code_change/3]).
-
 % API
 -export([alert/3,
-         alert/4,
-         child_spec/1]).
+         alert/4]).
+
+-export([init/1, handle_call/3, handle_cast/2,
+         handle_info/2, terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -20,10 +19,6 @@
 -spec start_link(esputnik_api:sputnik_path()) -> {ok, pid()}.
 start_link(SputnikServer) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [SputnikServer], []).
-
--spec child_spec(esputnik_api:sputnik_path()) -> supervisor:child_spec().
-child_spec(SputnikServer) ->
-    {esputnik, {?MODULE, start_link, [SputnikServer]}, permanent, 5000, worker, [?MODULE]}.
 
 -spec alert(esputnik_api:alert_type(), esputnik_api:team_name(), esputnik_api:message()) ->
                    ok.

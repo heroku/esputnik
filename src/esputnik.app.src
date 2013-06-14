@@ -6,5 +6,6 @@
   {registered, []},
   {applications, [kernel,
                   stdlib,
-                  hackney]}
+                  hackney]},
+  {mod, { esputnik_app, []}}
  ]}.

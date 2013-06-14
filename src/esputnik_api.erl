@@ -38,7 +38,7 @@
 send_alert(Endpoint, SputnikMessage) ->
     http_post(Endpoint, <<"/alert">>, SputnikMessage).
 
--spec close_connection(connection()) -> ok.
+-spec close_connection(connection()|undefined) -> ok.
 close_connection(Connection) ->
     catch hackney:close(Connection),
     ok.
@@ -60,8 +60,8 @@ alert(Server, AlertType, Team, Message, AlertOpts) ->
 -spec to_sputnik_message(alert_type(), team_name(), message(), alert_opts()) ->
                                 {ok, sputnik_message()}.
 to_sputnik_message(AlertType, Team, Message, AlertOpts) ->
-    [{<<"team">>, esputnik_utils:to_bin(Team)},
-     {<<"message">>, esputnik_utils:to_bin(Message)},
+    [{<<"team">>, to_bin(Team)},
+     {<<"message">>, to_bin(Message)},
      {<<"type">>, convert_alert(AlertType)}] ++ get_opts(AlertOpts).
     
 %% Internal
@@ -71,9 +71,9 @@ get_opts(Opts) ->
 get_opts([], Res) ->
     Res;
 get_opts([{request_id, RequestId}|Rest], Res) ->
-    get_opts(Rest, Res++[{<<"request_id">>, esputnik_utils:to_bin(RequestId)}]);
+    get_opts(Rest, Res++[{<<"request_id">>, to_bin(RequestId)}]);
 get_opts([{message_id, MessageId}|Rest], Res) ->
-    get_opts(Rest, Res++[{<<"message_id">>, esputnik_utils:to_bin(MessageId)}]);
+    get_opts(Rest, Res++[{<<"message_id">>, to_bin(MessageId)}]);
 get_opts([{priority, Priority}|Rest], Res) ->
     get_opts(Rest, Res++[{<<"priority">>, convert_priority(Priority)}]).
 
@@ -90,7 +90,7 @@ convert_priority(notice) ->
     <<"notice">>.
 
 http_post(SputnikPath, Endpoint, FormData) when is_list(SputnikPath) ->
-    http_post(esputnik_utils:to_bin(SputnikPath), Endpoint, FormData);
+    http_post(to_bin(SputnikPath), Endpoint, FormData);
 http_post(SputnikPath, Endpoint, FormData) when is_binary(SputnikPath) ->
     HttpReply = hackney:request(post, <<SputnikPath/binary, Endpoint/binary>>, [], {form, FormData}),
     http_handle(HttpReply);
@@ -115,3 +115,8 @@ http_handle({ok, Code, _, Client}) ->
     {error, {code, Code}, Client};
 http_handle({error, Reason}) ->
     {error, Reason}.
+
+to_bin(B) when is_binary(B) ->
+    B;
+to_bin(L) when is_list(L) ->
+    list_to_binary(L).
