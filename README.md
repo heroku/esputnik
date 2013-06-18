@@ -21,7 +21,8 @@ You need to specify a `sputnik_server`
 ``` erlang
 [{esputnik, [{sputnik_api_url, iolist()},
              {connect_timeout, pos_integer()}, % ms, default 2000
-             {recv_timeout, pos_integer()} % ms, default 2000
+             {recv_timeout, pos_integer()}, % ms, default 2000
+             {throttle_time, integer()} % ms, default 1000
             ]}].
 ```
 
