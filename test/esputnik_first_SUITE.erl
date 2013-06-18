@@ -9,12 +9,13 @@
 %% a single atom. Groups are named as {group, GroupName}. The tests
 %% will run in the order given in the list.
 all() ->
-    [active_alert,
-     active_resolve,
-     alert_opts,
-     esputnik_server,
-     sputnik_api_timeout,
-     sputnik_api_timeout_server
+    [active_alert
+     ,active_resolve
+     ,alert_opts
+     ,esputnik_server
+     ,sputnik_api_timeout
+     ,sputnik_api_timeout_server
+     ,sputnik_server_throttle
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%
@@ -26,6 +27,8 @@ init_per_suite(Config) ->
     ok = application:start(meck),
     Server = <<"test">>,
     application:set_env(esputnik, sputnik_api_url, Server),
+    application:set_env(esptunik, throttle_time, 0),
+    ok = error_logger:add_report_handler(esputnik_event_handler),
     esputnik_app:start(),
     [{server, Server}|Config].
 
@@ -138,6 +141,24 @@ init_per_testcase(esputnik_server, Config) ->
 init_per_testcase(sputnik_api_timeout_server, Config) ->
     esputnik:change_api_url(<<"https://heroku.com">>),
     Config;
+init_per_testcase(sputnik_server_throttle, Config) ->
+    esputnik:change_api_url(<<"test">>),
+    application:stop(esputnik),
+    application:start(esputnik),
+    meck:new(hackney, [unstick, passthrough]),
+    meck:expect(hackney, request,
+                fun(post, <<"test/alert">>, [], {form, _FormData}, _) ->
+                        {ok, 200, [], connection1}
+                end),
+    meck:expect(hackney, body,
+                fun(connection1) ->
+                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
+                end),
+    meck:expect(hackney, close,
+                fun(active_client) ->
+                        ok
+                end),
+    Config;
 init_per_testcase(_CaseName, Config) ->
     Config.
 
@@ -198,9 +219,28 @@ sputnik_api_timeout(Config) ->
 
 sputnik_api_timeout_server(Config) ->
     ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server">>),
+    [{_, Msg, _}] = wait_for_event(),
+    <<"at=handle_alert error=timeout", _/binary>> = list_to_binary(Msg),
+    Config.
+
+sputnik_server_throttle(Config) ->
+    application:set_env(esputnik, throttle_time, -1),
+    ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server_throttle0">>),
+    ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server_throttle1">>),
+    [{_, Msg, _}] = wait_for_event(),
+    <<"at=handle_alert warning=throttled", _/binary>> = list_to_binary(Msg),
     Config.
 
 % Internal
+wait_for_event() ->
+    case gen_event:call(error_logger, esputnik_event_handler, get) of
+        [] ->
+            timer:sleep(1),
+            wait_for_event();
+        Events ->
+            Events
+    end.
+
 wait_for_message(Length) ->
     case ets:tab2list(esputnik_server) of 
         List when length(List) == Length ->

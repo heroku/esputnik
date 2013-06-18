@@ -14,7 +14,9 @@
 -define(SERVER, ?MODULE).
 
 -record(state, {connection :: espuntik_api:connection()|undefined,
-                server :: esputnik_api:sputnik_api_url()}).
+                server :: esputnik_api:sputnik_api_url(),
+                last_message_timestamp :: erlang:timestamp()
+               }).
 
 %% Public API
 -spec start_link(esputnik_api:sputnik_api_url()) -> {ok, pid()}.
@@ -49,20 +51,30 @@ handle_call(_Request, _From, State) ->
     {noreply, State}.
 
 handle_cast({alert, SputnikMessage}, #state{connection=undefined,
+                                            last_message_timestamp=LastMessageTimestamp,
                                             server=Server}=State) ->
-    case send_alert(Server, SputnikMessage) of
+    case maybe_send_alert(Server, SputnikMessage, LastMessageTimestamp) of
         {error, reconnect} ->
-            error_logger:info_msg("at=handle_alert error=closed message=~p", [SputnikMessage]),
+            error_logger:info_msg("at=handle_alert warning=connection_closed message=~p", [SputnikMessage]),
+            {noreply, State};
+        throttled ->
+            error_logger:info_msg("at=handle_alert warning=throttled message=~p", [SputnikMessage]),
             {noreply, State};
         {new_connection, Connection1} ->
-            {noreply, State#state{connection=Connection1}}
+            {noreply, State#state{connection=Connection1,
+                                  last_message_timestamp=now()}}
     end;
-handle_cast({alert, SputnikMessage}, #state{connection=Connection}=State) ->
-    case send_alert(Connection, SputnikMessage) of
+handle_cast({alert, SputnikMessage}, #state{connection=Connection,
+                                            last_message_timestamp=LastMessageTimestamp}=State) ->
+    case maybe_send_alert(Connection, SputnikMessage, LastMessageTimestamp) of
         {error, reconnect} ->
             handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
+        throttled ->
+            error_logger:info_msg("at=handle_alert warning=throttled message=~p", [SputnikMessage]),
+            {noreply, State};
         {new_connection, Connection1} ->
-            {noreply, State#state{connection=Connection1}}
+            {noreply, State#state{connection=Connection1,
+                                  last_message_timestamp=now()}}
     end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -77,7 +89,18 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% Internal
-send_alert(Connection, SputnikMessage) ->
+maybe_send_alert(Connection, SputnikMessage, undefined) ->
+    send_alert_(Connection, SputnikMessage);
+maybe_send_alert(Connection, SputnikMessage, LastMessageTimestamp) ->
+    ThrottleTime = esputnik_app:config(throttle_time),
+    case timer:now_diff(now(), LastMessageTimestamp) of
+        X when X =< ThrottleTime ->
+            send_alert_(Connection, SputnikMessage);
+        _ ->
+            throttled
+    end.
+
+send_alert_(Connection, SputnikMessage) ->
     case esputnik_api:send_alert(Connection, SputnikMessage) of
         {ok, _RequestId, Connection1} ->
             {new_connection, Connection1};
