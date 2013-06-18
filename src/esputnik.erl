@@ -62,7 +62,7 @@ handle_cast({alert, SputnikMessage}, #state{connection=undefined,
             {noreply, State};
         {new_connection, Connection1} ->
             {noreply, State#state{connection=Connection1,
-                                  last_message_timestamp=now()}}
+                                  last_message_timestamp=os:timestamp()}}
     end;
 handle_cast({alert, SputnikMessage}, #state{connection=Connection,
                                             last_message_timestamp=LastMessageTimestamp}=State) ->
@@ -74,7 +74,7 @@ handle_cast({alert, SputnikMessage}, #state{connection=Connection,
             {noreply, State};
         {new_connection, Connection1} ->
             {noreply, State#state{connection=Connection1,
-                                  last_message_timestamp=now()}}
+                                  last_message_timestamp=os:timestamp()}}
     end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -93,8 +93,9 @@ maybe_send_alert(Connection, SputnikMessage, undefined) ->
     send_alert_(Connection, SputnikMessage);
 maybe_send_alert(Connection, SputnikMessage, LastMessageTimestamp) ->
     ThrottleTime = esputnik_app:config(throttle_time),
-    case timer:now_diff(now(), LastMessageTimestamp) of
-        X when X =< ThrottleTime ->
+    Diff = timer:now_diff(os:timestamp(), LastMessageTimestamp) / 1000,
+    case Diff of
+        X when X >= ThrottleTime ->
             send_alert_(Connection, SputnikMessage);
         _ ->
             throttled
