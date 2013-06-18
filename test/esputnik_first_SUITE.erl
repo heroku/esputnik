@@ -26,8 +26,7 @@ all() ->
 init_per_suite(Config) ->
     ok = application:start(meck),
     Server = <<"test">>,
-    application:set_env(esputnik, sputnik_api_url, Server),
-    application:set_env(esptunik, throttle_time, 0),
+    ok = application:set_env(esputnik, sputnik_api_url, Server),
     ok = error_logger:add_report_handler(esputnik_event_handler),
     esputnik_app:start(),
     [{server, Server}|Config].
@@ -101,6 +100,9 @@ init_per_testcase(alert_opts, Config) ->
                 end),
     Config;
 init_per_testcase(esputnik_server, Config) ->
+    Server = ?config(server, Config),
+    ok = application:set_env(esputnik, sputnik_api_url, Server),
+    ok = application:set_env(esputnik, throttle_time, 0),
     ets:new(esputnik_server, [named_table, public]),
     meck:new(hackney, [unstick, passthrough]),
     meck:expect(hackney, request,
@@ -145,6 +147,7 @@ init_per_testcase(sputnik_server_throttle, Config) ->
     esputnik:change_api_url(<<"test">>),
     application:stop(esputnik),
     application:start(esputnik),
+    application:set_env(esputnik, throttle_time, 1000),
     meck:new(hackney, [unstick, passthrough]),
     meck:expect(hackney, request,
                 fun(post, <<"test/alert">>, [], {form, _FormData}, _) ->
@@ -224,7 +227,6 @@ sputnik_api_timeout_server(Config) ->
     Config.
 
 sputnik_server_throttle(Config) ->
-    application:set_env(esputnik, throttle_time, -1),
     ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server_throttle0">>),
     ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server_throttle1">>),
     [{_, Msg, _}] = wait_for_event(),
