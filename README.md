@@ -2,6 +2,8 @@
 
 Send alerts to a Sputnik server
 
+[![Build Status](https://magnum.travis-ci.com/heroku/esputnik.png?token=xVUSrt9RJn9ZjQwspdLg&branch=master)](https://magnum.travis-ci.com/heroku/esputnik)
+
 ## Setup
 
 ```
