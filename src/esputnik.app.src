@@ -6,7 +6,8 @@
   {registered, []},
   {applications, [kernel,
                   stdlib,
-                  hackney]},
+                  hackney,
+                  jsx]},
   {mod, { esputnik_app, []}},
   {env, [{connect_timeout, 2000} %% ms
          ,{recv_timeout, 2000} %% ms
