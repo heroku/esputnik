@@ -16,5 +16,4 @@ start_link() ->
 %% Supervisor callbacks
 %% ===================================================================
 init([]) ->
-    SputnikServer = esputnik_app:config(sputnik_api_url),
-    {ok, {{one_for_one, 5, 10}, [{esputnik, {esputnik, start_link, [SputnikServer]}, permanent, 5000, worker, [esputnik]}]}}.
+    {ok, {{one_for_one, 5, 10}, [{esputnik, {esputnik, start_link, []}, permanent, 5000, worker, [esputnik]}]}}.
