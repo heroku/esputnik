@@ -2,7 +2,7 @@
 {application, esputnik,
  [
   {description, "Erlang client to Sputnik"},
-  {vsn, "0.1.5"},
+  {vsn, "semver"},
   {registered, []},
   {applications, [kernel,
                   stdlib,
