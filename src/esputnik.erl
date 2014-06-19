@@ -41,7 +41,14 @@ change_api_url(SputnikApiUrl) ->
 
 %% Gen Server callbacks
 init([]) ->
-    {ok, #state{server=esputnik_app:config(sputnik_api_url, undefined)}}.
+    Server = 
+        case esputnik_app:config(sputnik_api_url, undefined) of
+            undefined ->
+                error_logger:info_msg("at=init warning=no_api_set");
+            Url ->
+                Url
+        end,
+    {ok, #state{server=Server}}.
 
 handle_call({change_api_url, SputnikServer}, _From, #state{connection=Connection,
                                                            server=OldSputnikServer}) ->
@@ -58,7 +65,6 @@ handle_cast({alert, SputnikMessage}, #state{connection=undefined,
             error_logger:info_msg("at=handle_alert warning=connection_closed message=~p", [SputnikMessage]),
             {noreply, State};
         {error, no_api_set} ->
-            error_logger:info_msg("at=handle_alert warning=no_api_set message=~p", [SputnikMessage]),
             {noreply, State};
         throttled ->
             error_logger:info_msg("at=handle_alert warning=throttled message=~p", [SputnikMessage]),
@@ -73,7 +79,6 @@ handle_cast({alert, SputnikMessage}, #state{connection=Connection,
         {error, reconnect} ->
             handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
         {error, no_api_set} ->
-            error_logger:info_msg("at=handle_alert warning=no_api_set message=~p", [SputnikMessage]),
             {noreply, State};
         throttled ->
             error_logger:info_msg("at=handle_alert warning=throttled message=~p", [SputnikMessage]),

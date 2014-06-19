@@ -261,7 +261,7 @@ sputnik_server_throttle(Config) ->
 no_api_set(Config) ->
     ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server">>),
     [{_, Msg, _}] = wait_for_event(),
-    <<"at=handle_alert warning=no_api_set", _/binary>> = list_to_binary(Msg),
+    <<"at=init warning=no_api_set", _/binary>> = list_to_binary(Msg),
     Config.
 
 % Internal
