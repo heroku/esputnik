@@ -46,10 +46,7 @@ init_per_group(normal, Config) ->
     ok = error_logger:add_report_handler(esputnik_event_handler),
     esputnik_app:start(),
     [{server, Server}|Config];
-init_per_group(no_api, Config) ->
-    ok = application:unset_env(esputnik, sputnik_api_url),
-    ok = error_logger:add_report_handler(esputnik_event_handler),
-    esputnik_app:start(),
+init_per_group(_, Config) ->
     Config.
 
 end_per_group(normal, Config) ->
@@ -259,9 +256,11 @@ sputnik_server_throttle(Config) ->
     Config.
 
 no_api_set(Config) ->
-    ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server">>),
+    ok = application:unset_env(esputnik, sputnik_api_url),
+    ok = error_logger:add_report_handler(esputnik_event_handler),
+    application:start(esputnik),
     [{_, Msg, _}] = wait_for_event(),
-    <<"at=init warning=no_api_set", _/binary>> = list_to_binary(Msg),
+    "at=init warning=no_api_set" = Msg,
     Config.
 
 % Internal

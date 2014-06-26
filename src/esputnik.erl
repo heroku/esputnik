@@ -41,14 +41,13 @@ change_api_url(SputnikApiUrl) ->
 
 %% Gen Server callbacks
 init([]) ->
-    Server = 
-        case esputnik_app:config(sputnik_api_url, undefined) of
-            undefined ->
-                error_logger:info_msg("at=init warning=no_api_set");
-            Url ->
-                Url
-        end,
-    {ok, #state{server=Server}}.
+    case esputnik_app:config(sputnik_api_url, undefined) of
+        undefined ->
+            error_logger:info_msg("at=init warning=no_api_set"),
+            {stop, no_api_set};
+        Url ->
+            {ok, #state{server=Url}}
+    end.
 
 handle_call({change_api_url, SputnikServer}, _From, #state{connection=Connection,
                                                            server=OldSputnikServer}) ->

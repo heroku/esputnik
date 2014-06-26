@@ -16,4 +16,4 @@ start_link() ->
 %% Supervisor callbacks
 %% ===================================================================
 init([]) ->
-    {ok, {{one_for_one, 5, 10}, [{esputnik, {esputnik, start_link, []}, permanent, 5000, worker, [esputnik]}]}}.
+    {ok, {{one_for_one, 5, 10}, [{esputnik, {esputnik, start_link, []}, transient, 5000, worker, [esputnik]}]}}.
