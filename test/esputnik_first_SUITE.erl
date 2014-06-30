@@ -9,14 +9,21 @@
 %% a single atom. Groups are named as {group, GroupName}. The tests
 %% will run in the order given in the list.
 all() ->
-    [active_alert
-     ,active_resolve
-     ,alert_opts
-     ,esputnik_server
-     ,sputnik_api_timeout
-     ,sputnik_api_timeout_server
-     ,sputnik_server_throttle
+    [{group, normal},
+     {group, no_api}
     ].
+
+groups() ->
+    [{normal, [], [active_alert
+                  ,active_resolve
+                  ,alert_opts
+                  ,esputnik_server
+                  ,sputnik_api_timeout
+                  ,sputnik_api_timeout_server
+                  ,sputnik_server_throttle]},
+     {no_api, [], [no_api_set]}
+    ].
+    
 
 %%%%%%%%%%%%%%%%%%%%%%
 %%% Setup/Teardown %%%
@@ -24,17 +31,32 @@ all() ->
 %% Runs once at the beginning of the suite. The process is different
 %% from the one the case will run in.
 init_per_suite(Config) ->
+    Config.
+
+%% Runs once at the end of the suite. The process is different
+%% from the one the case will run in.
+end_per_suite(Config) ->
+    Config.
+
+%% Init per group
+init_per_group(normal, Config) ->
     ok = application:start(meck),
     Server = <<"test">>,
     ok = application:set_env(esputnik, sputnik_api_url, Server),
     ok = error_logger:add_report_handler(esputnik_event_handler),
     esputnik_app:start(),
-    [{server, Server}|Config].
+    [{server, Server}|Config];
+init_per_group(_, Config) ->
+    Config.
 
-%% Runs once at the end of the suite. The process is different
-%% from the one the case will run in.
-end_per_suite(Config) ->
+end_per_group(normal, Config) ->
     application:stop(meck),
+    error_logger:delete_report_handler(esputnik_event_handler),
+    application:stop(esputnik),
+    Config;
+end_per_group(_, Config) ->
+    error_logger:delete_report_handler(esputnik_event_handler),
+    application:stop(esputnik),
     Config.
 
 %% Runs before the test case. Runs in the same process.
@@ -168,10 +190,10 @@ init_per_testcase(_CaseName, Config) ->
 %% Runs after the test case. Runs in the same process.
 end_per_testcase(esputnik_server, Config) ->
     ets:delete(esputnik_server),
-    meck:unload(hackney),
+    catch meck:unload(hackney),
     Config;
 end_per_testcase(_CaseName, Config) ->
-    meck:unload(hackney),
+    catch meck:unload(hackney),
     Config.
 
 %%%%%%%%%%%%%
@@ -231,6 +253,14 @@ sputnik_server_throttle(Config) ->
     ok = esputnik:alert(alert, <<"team">>, <<"esputnik_server_throttle1">>),
     [{_, Msg, _}] = wait_for_event(),
     <<"at=handle_alert warning=throttled", _/binary>> = list_to_binary(Msg),
+    Config.
+
+no_api_set(Config) ->
+    ok = application:unset_env(esputnik, sputnik_api_url),
+    ok = error_logger:add_report_handler(esputnik_event_handler),
+    application:start(esputnik),
+    [{_, Msg, _}] = wait_for_event(),
+    "at=init warning=no_api_set" = Msg,
     Config.
 
 % Internal

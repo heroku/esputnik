@@ -1,7 +1,7 @@
 -module(esputnik).
 -behaviour(gen_server).
 
--export([start_link/1]).
+-export([start_link/0]).
 
 % API
 -export([alert/3,
@@ -19,9 +19,9 @@
                }).
 
 %% Public API
--spec start_link(esputnik_api:sputnik_api_url()) -> {ok, pid()}.
-start_link(SputnikApiUrl) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [SputnikApiUrl], []).
+-spec start_link() -> {ok, pid()}.
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 -spec alert(esputnik_api:alert_type(), esputnik_api:team_name(), esputnik_api:message()) ->
                    ok.
@@ -40,8 +40,14 @@ change_api_url(SputnikApiUrl) ->
     gen_server:call(?SERVER, {change_api_url, SputnikApiUrl}).
 
 %% Gen Server callbacks
-init([SputnikServer]) ->
-    {ok, #state{server=SputnikServer}}.
+init([]) ->
+    case esputnik_app:config(sputnik_api_url, undefined) of
+        undefined ->
+            error_logger:info_msg("at=init warning=no_api_set"),
+            {stop, no_api_set};
+        Url ->
+            {ok, #state{server=Url}}
+    end.
 
 handle_call({change_api_url, SputnikServer}, _From, #state{connection=Connection,
                                                            server=OldSputnikServer}) ->
@@ -57,6 +63,8 @@ handle_cast({alert, SputnikMessage}, #state{connection=undefined,
         {error, reconnect} ->
             error_logger:info_msg("at=handle_alert warning=connection_closed message=~p", [SputnikMessage]),
             {noreply, State};
+        {error, no_api_set} ->
+            {noreply, State};
         throttled ->
             error_logger:info_msg("at=handle_alert warning=throttled message=~p", [SputnikMessage]),
             {noreply, State};
@@ -69,6 +77,8 @@ handle_cast({alert, SputnikMessage}, #state{connection=Connection,
     case maybe_send_alert(Connection, SputnikMessage, LastMessageTimestamp) of
         {error, reconnect} ->
             handle_cast({alert, SputnikMessage}, State#state{connection=undefined});
+        {error, no_api_set} ->
+            {noreply, State};
         throttled ->
             error_logger:info_msg("at=handle_alert warning=throttled message=~p", [SputnikMessage]),
             {noreply, State};
@@ -89,6 +99,8 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% Internal
+maybe_send_alert(undefined, _, _) ->
+    {error, no_api_set};
 maybe_send_alert(Connection, SputnikMessage, undefined) ->
     send_alert_(Connection, SputnikMessage);
 maybe_send_alert(Connection, SputnikMessage, LastMessageTimestamp) ->
