@@ -130,6 +130,8 @@ http_handle({ok, 500, _, Client}) ->
     {error, internal_error, Client};
 http_handle({ok, Code, _, Client}) ->
     {error, {code, Code}, Client};
+http_handle({error, connect_timeout}) ->
+    {error, timeout};
 http_handle({error, Reason}) ->
     {error, Reason}.
 
