@@ -123,9 +123,13 @@ http_post(SputnikClient, Endpoint, FormData, _) ->
     end.
 
 http_handle({ok, 200, _, Client}) ->
-    {ok, Body} = hackney:body(Client),
-    Json = jsx:json_to_term(Body),
-    {ok, proplists:get_value(<<"request_id">>, Json), Client};
+    case hackney:body(Client) of
+        {ok, Body} ->
+            Json = jsx:json_to_term(Body),
+            {ok, proplists:get_value(<<"request_id">>, Json), Client};
+        {error, Reason} ->
+            {error, {body, Reason}}
+    end;
 http_handle({ok, 500, _, Client}) ->
     {error, internal_error, Client};
 http_handle({ok, Code, _, Client}) ->
