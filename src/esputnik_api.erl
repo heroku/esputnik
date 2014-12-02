@@ -29,7 +29,7 @@
 -type alert_output() :: {ok, request_id(), connection()}|
                          {error, alert_error(), connection()}.
 -type sputnik_api_url() :: iolist().
--opaque connection() :: record()|undefined.
+-opaque connection() :: tuple()|undefined.
 -type sputnik_server() :: sputnik_api_url()|connection().
 -opaque sputnik_message() :: [{binary(), binary()}].
 -type sputnik_connect_opt() :: {connect_timeout|recv_timeout, pos_integer()}.
