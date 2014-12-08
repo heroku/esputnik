@@ -17,19 +17,19 @@
               sputnik_api_url/0
              ]).
 
--type team_name() :: iolist().
--type message() :: iolist().
+-type team_name() :: iodata().
+-type message() :: iodata().
 -type alert_type() :: alert|resolve.
--type request_id() :: iolist().
+-type request_id() :: iodata().
 -type priority() :: critical|warning|notice.
--type alert_opt() :: {request_id, iolist()}|{message_id, iolist()}|
+-type alert_opt() :: {request_id, iodata()}|{message_id, iodata()}|
                           {priority, priority()}.
 -type alert_opts() :: [alert_opt()].
 -type alert_error() :: internal_error|{code, pos_integer()}.
 -type alert_output() :: {ok, request_id(), connection()}|
                          {error, alert_error(), connection()}.
--type sputnik_api_url() :: iolist().
--opaque connection() :: tuple()|undefined.
+-type sputnik_api_url() :: iodata().
+-opaque connection() :: hackney:client()|undefined.
 -type sputnik_server() :: sputnik_api_url()|connection().
 -opaque sputnik_message() :: [{binary(), binary()}].
 -type sputnik_connect_opt() :: {connect_timeout|recv_timeout, pos_integer()}.

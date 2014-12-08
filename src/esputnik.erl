@@ -13,7 +13,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {connection :: espuntik_api:connection()|undefined,
+-record(state, {connection :: esputnik_api:connection()|undefined,
                 server :: esputnik_api:sputnik_api_url(),
                 last_message_timestamp :: erlang:timestamp()
                }).
