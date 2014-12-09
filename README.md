@@ -21,7 +21,7 @@ $ make test
 You need to specify a `sputnik_server`
 
 ``` erlang
-[{esputnik, [{sputnik_api_url, iolist()},
+[{esputnik, [{sputnik_api_url, iodata()},
              {connect_timeout, pos_integer()}, % ms, default 2000
              {recv_timeout, pos_integer()}, % ms, default 2000
              {throttle_time, integer()} % ms, default 1000
@@ -35,17 +35,17 @@ This configuration variable is used in the `esputnik` stateful `gen_server`.
 ## Types
 
 ``` erlang
--type team_name() :: iolist().
--type message() :: iolist().
+-type team_name() :: iodata().
+-type message() :: iodata().
 -type alert_type() :: alert|resolve.
--type request_id() :: iolist().
+-type request_id() :: iodata().
 -type alert_error() :: internal_error|{code, pos_integer()}.
 -opaque connection().
--type sputnik_api_url() :: iolist().
+-type sputnik_api_url() :: iodata().
 -type sputnik_server() :: sputnik_api_url()|connection().
 -type alert_output() :: {ok, request_id(), connection()}|
                          {error, alert_error(), connection()}.
--type alert_opt() :: {request_id, iolist()}|{message_id, iolist()}|
+-type alert_opt() :: {request_id, iodata()}|{message_id, iodata()}|
                           {priority, priority()}.
 ```
 
