@@ -23,7 +23,7 @@ groups() ->
                   ,sputnik_server_throttle]},
      {no_api, [], [no_api_set]}
     ].
-    
+
 
 %%%%%%%%%%%%%%%%%%%%%%
 %%% Setup/Teardown %%%
@@ -40,19 +40,20 @@ end_per_suite(Config) ->
 
 %% Init per group
 init_per_group(normal, Config) ->
-    ok = application:start(meck),
+    {ok, MeckApps} = application:ensure_all_started(meck),
     Server = <<"test">>,
     ok = application:set_env(esputnik, sputnik_api_url, Server),
     ok = error_logger:add_report_handler(esputnik_event_handler),
-    esputnik_app:start(),
-    [{server, Server}|Config];
+    {ok, EsputnikApps} = application:ensure_all_started(esputnik),
+    [{apps, MeckApps ++ EsputnikApps},
+     {server, Server}
+     | Config];
 init_per_group(_, Config) ->
     Config.
 
 end_per_group(normal, Config) ->
-    application:stop(meck),
     error_logger:delete_report_handler(esputnik_event_handler),
-    application:stop(esputnik),
+    [ok = application:stop(App) || App <- lists:reverse(?config(apps, Config))],
     Config;
 end_per_group(_, Config) ->
     error_logger:delete_report_handler(esputnik_event_handler),
@@ -75,7 +76,7 @@ init_per_testcase(active_alert, Config) ->
                 end),
     meck:expect(hackney, body,
                 fun(connection1) ->
-                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
+                        {ok, <<"{\"request_id\":\"random\"}">>}
                 end),
     meck:expect(hackney, close,
                 fun(active_client) ->
@@ -93,7 +94,7 @@ init_per_testcase(active_resolve, Config) ->
                 end),
     meck:expect(hackney, body,
                 fun(connection1) ->
-                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
+                        {ok, <<"{\"request_id\":\"random\"}">>}
                 end),
     meck:expect(hackney, close,
                 fun(connection2) ->
@@ -112,13 +113,9 @@ init_per_testcase(alert_opts, Config) ->
                         <<"critical">> = proplists:get_value(<<"priority">>, FormData),
                         meck:expect(hackney, body,
                                     fun(connection1) ->
-                                            {ok, <<"{\"request_id\":\"", MessageId/binary  ,"\"}">>, connection2}
+                                            {ok, <<"{\"request_id\":\"", MessageId/binary  ,"\"}">>}
                                     end),
                         {ok, 200, [], connection1}
-                end),
-    meck:expect(hackney, close,
-                fun(connection2) ->
-                        ok
                 end),
     Config;
 init_per_testcase(esputnik_server, Config) ->
@@ -142,7 +139,7 @@ init_per_testcase(esputnik_server, Config) ->
                         {ok, 200, [], connection1}
                 end),
     meck:expect(hackney, send_request,
-                fun(connection2, {post, <<"/alert">>, [], {form, FormData}}) ->
+                fun(connection1, {post, <<"/alert">>, [], {form, FormData}}) ->
                         Team = proplists:get_value(<<"team">>, FormData),
                         <<"alert">> = proplists:get_value(<<"type">>, FormData),
                         case proplists:get_value(<<"message">>, FormData) of
@@ -155,7 +152,7 @@ init_per_testcase(esputnik_server, Config) ->
                 end),
     meck:expect(hackney, body,
                 fun(connection1) ->
-                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
+                        {ok, <<"{\"request_id\":\"random\"}">>}
                 end),
     meck:expect(hackney, close,
                 fun(active_client) ->
@@ -177,7 +174,7 @@ init_per_testcase(sputnik_server_throttle, Config) ->
                 end),
     meck:expect(hackney, body,
                 fun(connection1) ->
-                        {ok, <<"{\"request_id\":\"random\"}">>, connection2}
+                        {ok, <<"{\"request_id\":\"random\"}">>}
                 end),
     meck:expect(hackney, close,
                 fun(active_client) ->
@@ -202,16 +199,16 @@ end_per_testcase(_CaseName, Config) ->
 active_alert(Config) ->
     Server = ?config(server, Config),
     Message = esputnik_api:to_sputnik_message(alert, <<"dev">>, <<"active_alert">>),
-    {ok, <<"random">>, connection2} = esputnik_api:send_alert(Server, Message),
+    {ok, <<"random">>, connection1} = esputnik_api:send_alert(Server, Message),
     Message1 = esputnik_api:to_sputnik_message(alert, <<"dev">>, <<"active_alert">>, []),
-    {ok, <<"random">>, connection2} = esputnik_api:send_alert(Server, Message1),
+    {ok, <<"random">>, connection1} = esputnik_api:send_alert(Server, Message1),
     {error, closed} = esputnik_api:send_alert(connection2, Message1),
     Config.
 
 active_resolve(Config) ->
     Server = ?config(server, Config),
     Message = esputnik_api:to_sputnik_message(resolve, <<"dev">>, <<"active_resolve">>),
-    {ok, <<"random">>, connection2} = esputnik_api:send_alert(Server, Message),
+    {ok, <<"random">>, connection1} = esputnik_api:send_alert(Server, Message),
     Config.
 
 alert_opts(Config) ->
@@ -221,7 +218,7 @@ alert_opts(Config) ->
                                               [{request_id, <<"test">>},
                                                {message_id, MessageId},
                                                {priority, critical}]),
-    {ok, MessageId, connection2} = esputnik_api:send_alert(Server, Message),
+    {ok, MessageId, connection1} = esputnik_api:send_alert(Server, Message),
     Config.
 
 esputnik_server(Config) ->
@@ -239,7 +236,7 @@ esputnik_server(Config) ->
 sputnik_api_timeout(Config) ->
     application:set_env(esputnik, connect_timeout, 1),
     Message = esputnik_api:to_sputnik_message(alert, <<"dev">>, <<"timeout">>),
-    {error, timeout} = esputnik_api:send_alert(<<"https://heroku.com">>, Message),
+    {error, connect_timeout} = esputnik_api:send_alert(<<"https://heroku.com">>, Message),
     Config.
 
 sputnik_api_timeout_server(Config) ->
@@ -258,7 +255,7 @@ sputnik_server_throttle(Config) ->
 no_api_set(Config) ->
     ok = application:unset_env(esputnik, sputnik_api_url),
     ok = error_logger:add_report_handler(esputnik_event_handler),
-    application:start(esputnik),
+    {error, _} = application:ensure_all_started(esputnik),
     [{_, Msg, _}] = wait_for_event(),
     "at=init warning=no_api_set" = Msg,
     Config.
@@ -274,7 +271,7 @@ wait_for_event() ->
     end.
 
 wait_for_message(Length) ->
-    case ets:tab2list(esputnik_server) of 
+    case ets:tab2list(esputnik_server) of
         List when length(List) == Length ->
             List;
         _ ->
