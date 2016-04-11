@@ -1,0 +1,12 @@
+[{<<"hackney">>,
+  {git,"git@github.com:benoitc/hackney.git",
+       {ref,"c5af75c883c10a036d5c8de15daacd1a3b7d27de"}},
+  0},
+ {<<"idna">>,
+  {git,"git://github.com/benoitc/erlang-idna.git",
+       {ref,"5089240e653ce254273da9cff57952a60b1d2c51"}},
+  1},
+ {<<"jsx">>,
+  {git,"git@github.com:talentdeficit/jsx.git",
+       {ref,"9d4534edc57686f28e16c5b1f6902a7e99c8b035"}},
+  0}].

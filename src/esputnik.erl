@@ -51,7 +51,12 @@ init([]) ->
 
 handle_call({change_api_url, SputnikServer}, _From, #state{connection=Connection,
                                                            server=OldSputnikServer}) ->
-    esputnik_api:close_connection(Connection),
+    case Connection of
+        undefined ->
+            ok;
+        _ ->
+            esputnik_api:close_connection(Connection)
+    end,
     {reply, {changed, OldSputnikServer, SputnikServer}, #state{server=SputnikServer}};
 handle_call(_Request, _From, State) ->
     {noreply, State}.
@@ -92,6 +97,8 @@ handle_cast(_Msg, State) ->
 handle_info(_Info, State) ->
     {noreply, State}.
 
+terminate(_Reason, #state{connection=undefined}) ->
+    ok;
 terminate(_Reason, #state{connection=Connection}) ->
     esputnik_api:close_connection(Connection).
 
@@ -121,7 +128,7 @@ send_alert_(Connection, SputnikMessage) ->
             {error, reconnect};
         {error, invalid_state} ->
             {error, reconnect};
-        {error, timeout} ->
+        {error, connect_timeout} ->
             error_logger:info_msg("at=handle_alert error=timeout message=~p", [SputnikMessage]),
             esputnik_api:close_connection(Connection),
             {new_connection, undefined};

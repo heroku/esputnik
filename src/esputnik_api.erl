@@ -27,9 +27,10 @@
 -type alert_opts() :: [alert_opt()].
 -type alert_error() :: internal_error|{code, pos_integer()}.
 -type alert_output() :: {ok, request_id(), connection()}|
-                         {error, alert_error(), connection()}.
+                        {error, alert_error(), connection()}|
+                        {error, term()}.
 -type sputnik_api_url() :: iodata().
--opaque connection() :: hackney:client()|undefined.
+-opaque connection() :: hackney:client().
 -type sputnik_server() :: sputnik_api_url()|connection().
 -opaque sputnik_message() :: [{binary(), binary()}].
 -type sputnik_connect_opt() :: {connect_timeout|recv_timeout, pos_integer()}.
@@ -44,7 +45,7 @@ send_alert(SputnikServer, SputnikMessage, SputnikConnectOpts) ->
 send_alert(SputnikServer, SputnikMessage) ->
     send_alert(SputnikServer, SputnikMessage, []).
 
--spec close_connection(connection()|undefined) -> ok.
+-spec close_connection(esputnik_api:connection()) -> ok.
 close_connection(Connection) ->
     catch hackney:close(Connection),
     ok.
@@ -58,7 +59,7 @@ to_sputnik_message(AlertType, Team, Message, AlertOpts) ->
 -spec to_sputnik_message(alert_type(), team_name(), message()) -> sputnik_message().
 to_sputnik_message(AlertType, Team, Message) ->
     to_sputnik_message(AlertType, Team, Message, []).
-    
+
 %% Internal
 get_opts(Opts) ->
     get_opts(Opts, []).
@@ -81,7 +82,7 @@ get_connect_opts([], Res) ->
 get_connect_opts([{connect_timeout, ConnectTimeout}|Opts], Res) ->
     get_connect_opts(Opts, Res++[{connect_timeout, ConnectTimeout}]);
 get_connect_opts([{recv_timeout, RecvTimeout}|Opts], Res) ->
-    get_connect_opts(Opts, Res++[{recv_timeout, RecvTimeout}]).    
+    get_connect_opts(Opts, Res++[{recv_timeout, RecvTimeout}]).
 
 set_connect_defaults(Res, []) ->
     Res;
@@ -125,7 +126,7 @@ http_post(SputnikClient, Endpoint, FormData, _) ->
 http_handle({ok, 200, _, Client}) ->
     case hackney:body(Client) of
         {ok, Body} ->
-            Json = jsx:json_to_term(Body),
+            Json = jsx:decode(Body),
             {ok, proplists:get_value(<<"request_id">>, Json), Client};
         {error, Reason} ->
             {error, {body, Reason}}
@@ -134,8 +135,6 @@ http_handle({ok, 500, _, Client}) ->
     {error, internal_error, Client};
 http_handle({ok, Code, _, Client}) ->
     {error, {code, Code}, Client};
-http_handle({error, connect_timeout}) ->
-    {error, timeout};
 http_handle({error, Reason}) ->
     {error, Reason}.
 
